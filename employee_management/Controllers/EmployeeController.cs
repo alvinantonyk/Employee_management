@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using employee_management.Dto;
+using employee_management.Services;
+using System;
 
 namespace employee_management.Controllers
 {
@@ -14,54 +16,70 @@ namespace employee_management.Controllers
     public class EmployeeController : ControllerBase
     {
         private readonly DataManager _dataManager;
-        public EmployeeController(DataManager dataManager)
+        
+        private readonly LeaveService _leaveService;
+        public EmployeeController(DataManager dataManager,LeaveService leaveService)
         {
             _dataManager = dataManager;
+            _leaveService = leaveService;
+            
+
         }
 
 
-        [HttpPost("user")]
-        public async Task<IActionResult> login( int userid)
-        {
-            var emp=_dataManager.GetEmployee(userid);
-            if(emp==null)
-                return Unauthorized();
-            var username = emp.username;
-            var role = emp.role;
-            var claim = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, username),
-                new Claim(ClaimTypes.Role,role)
-
-            };
-            var identity = new ClaimsIdentity(claim, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
-            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-            Console.WriteLine("added user");
-            return Ok();
-        }
+       
 
         [HttpGet]
         [Authorize]
-        public IActionResult GetAll() {
+        public IActionResult GetAllReporting() {
+            var userIdClaim = User.FindFirst("userid");
+            var userId = int.Parse(userIdClaim.Value);
 
-            var a= _dataManager.GetEmployees().ToArray();
-            return Ok(a);
+            var employees = _dataManager.GetAllReporting(userId);
+           
+
+            return Ok(employees);
         
         }
+
+        [HttpGet("profile")]
+        [Authorize]
+        public IActionResult GetProfile() {
+            var userIdClaim = User.FindFirst("userid");
+            var userId = int.Parse(userIdClaim.Value);
+
+            var emp = _dataManager.GetEmployee(userId);
+            var leaves = _leaveService.GetLeaveRequestProfile(userId);
+            var profile = new
+            {
+                employee=emp,
+                leaveRequest= leaves
+            };
+            return Ok(profile); 
+
+        }
+
 
 
         [HttpPost]
         [Authorize(Roles ="manager")]
         public IActionResult AddEmployee(EmployeeDto employeeDto)
         {
+            var userIdClaim = User.FindFirst("userid");
+            var userId = int.Parse(userIdClaim.Value);
+
+
             Employee employee=new Employee();
             employee.email=employeeDto.email;
-            employee.username=employeeDto.username;
+            employee.password=employeeDto.password;
             employee.name=employeeDto.name;
             employee.role = "employee";
-            employee.userId = _dataManager.Current_UserId();
+            
+            employee.reportingTo = userId;
+
+
             _dataManager.AddEmployee(employee);
+
             return Ok(employee);
         }
 
@@ -71,12 +89,26 @@ namespace employee_management.Controllers
         {
             Employee employee = new Employee();
             employee.email = employeeDto.email;
-            employee.username = employeeDto.username;
+            employee.password=employeeDto.password;
             employee.name = employeeDto.name;
             employee.role = "manager";
-            employee.userId = _dataManager.Current_UserId();
+            employee.reportingTo = 1;
+            
+
+
+
             _dataManager.AddEmployee(employee);
             return Ok(employee);
         }
+
+        [HttpGet("{id}")]
+        public IActionResult GetEmployee(int id) {
+        
+            var emp = _dataManager.GetEmployee(id);
+            return Ok(emp);
+        }
+
+
+     
     }
 }

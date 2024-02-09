@@ -1,5 +1,6 @@
 using employee_management;
 using employee_management.models;
+using employee_management.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<DataManager>();
+builder.Services.AddSingleton<LeaveService>();
+builder.Services.AddSingleton<LoginService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie();
